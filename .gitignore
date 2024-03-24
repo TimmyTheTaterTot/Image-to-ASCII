@@ -1,0 +1,6 @@
+# ignore all except actual program files
+*
+
+!.gitignore
+!img2ascii.py
+!readme.md
