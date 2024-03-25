@@ -1,3 +1,4 @@
+from multiprocessing import Value
 import cv2 as cv
 import sys, time, os
 
@@ -180,6 +181,56 @@ def load_ascii_video(filename):
                 frame.append(line[:-2])
     show_ascii_video(frames)
 
+def run_wizard():
+    output_mode = input("Which output mode would you like to use? (Picture mode (p) / Video mode (v) / Load existing (l)) ")
+    filename = input("Please enter the filename/filepath you would like to open: ")
+    if output_mode in ["p", "P", "v", "V"]:
+        quality = input("Which quality preset would you like to use? (Options: (1) 16 shades, (2) 53 shades, and (3) 92 shades) (default:1): ")
+        if quality in ["1", "16", "16 shades", ""]:
+            select16()
+        elif quality in ["2", "53", "53 shades"]:
+            select53()
+        elif quality in ["3", "92", "92 shades"]:
+            select92()
+        else:
+            raise ValueError(f"Invalid quality value: {quality}")
+        
+        global OUTWIDTH, OUTHEIGHT, SAVE_ASCII
+        width = input("Please select a frame width (default: 200): ")
+        if width != "":
+            if int(width) > 0:
+                OUTWIDTH = width
+
+        height = input("Please select a frame height (default: 100): ")
+        if height != "":
+            if int(height) > 0:
+                OUTHEIGHT = height
+
+        saveascii = input("Would you like to save the result once it is generated (otherwise it will simply be displayed). (y/n): ")
+        if saveascii in ['y', "Y"]:
+            SAVE_ASCII = True
+            OUTPUT_FILENAME = input("What would you like to save the output file as? (no default): ")
+        elif saveascii in ['n', 'N']:
+            SAVI_ASCII = False
+        
+        if output_mode in ["p", "P"]:
+            photo_mode(filename)
+        elif output_mode in ["v", "V"]:
+            start_time = input("What time in the video would you like to start at (in seconds)? (default:0): ")
+            if start_time == '':
+                start_time = 0
+            end_time = input("What time in the video would you like to stop at (in seconds)? (default:10): ")
+            if end_time == '':
+                end_time = 10
+            new_fps = input("What framerate would you like the generated video to run at? (default:10, max:30): ")
+            if new_fps == '':
+                new_fps = 10
+            video_mode(filename, start_time, end_time, new_fps)
+    elif output_mode in ["l", "L"]:
+        load_ascii(filename)
+    else:
+        raise ValueError(f"Invalid mode: {output_mode}\n")
+
 def load_ascii(filename):
     with open(filename, 'r') as ifile:
         header = ifile.readline()
@@ -220,7 +271,7 @@ def set_ascii_quality(quality):
     elif quality == 3:
         select92()
     else:
-        raise ValueError(f"Invalid ascii quality level: {quality}. Options are 1 (16 shades), 2 (53 shades), and 3 (93 shades).")
+        raise ValueError(f"Invalid ascii quality level: {quality}. Options are 1 (16 shades), 2 (53 shades), and 3 (92 shades).")
 
 def process_args(args):
     flags = {
@@ -235,6 +286,10 @@ def process_args(args):
         "-q" : set_ascii_quality,
         "-o" : set_output_filename,
     }
+
+    if len(args) == 1:
+        run_wizard()
+        return
 
     i = 1
     call = []
