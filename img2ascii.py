@@ -2,8 +2,9 @@ import cv2 as cv
 import sys, time, os
 
 ASCII = " `',;*!T1S9X$%&@"
-OUTWIDTH = 200
-OUTHEIGHT = 100
+COLOR_CHAR = "█"
+OUTWIDTH = 300
+OUTHEIGHT = 60
 NEW_FPS = 10
 SAVE_ASCII = False
 OUTPUT_FILENAME = ''
@@ -90,10 +91,7 @@ def load_ascii_image(filename):
 def video_mode(input_file, start_time = 0, end_time = 10, new_fps = 10):
     global NEW_FPS
     start_time, end_time, new_fps = int(start_time), int(end_time), int(new_fps)
-    if new_fps > 30:
-        NEW_FPS = 30
-    else:
-        NEW_FPS = int(new_fps)
+    NEW_FPS = min(30, new_fps)
 
     video = cv.VideoCapture(input_file)
     orig_fps = video.get(cv.CAP_PROP_FPS)
@@ -146,9 +144,11 @@ def show_ascii_video(frames):
     sleep_time = 1/NEW_FPS # have to do 1.1/NEW_FPS because of inaccuracy in the time.sleep() function
     for frame in frames:
         frame_start = time.time()
-        clear_console()
-        for line in frame:
-            print(line)
+        # clear_console()
+        frame_line = '\n'.join(frame)
+        sys.stdout.write('\033[0;0H' + frame_line)
+        sys.stdout.flush()
+            
         dtime = time.time() - frame_start
         time.sleep(max(0, sleep_time - dtime))
     clear_console()
@@ -195,12 +195,12 @@ def run_wizard():
             raise ValueError(f"Invalid quality value: {quality}")
         
         global OUTWIDTH, OUTHEIGHT, SAVE_ASCII
-        width = input("Please select a frame width (default: 200): ")
+        width = input("Please select a frame width (default: 300): ")
         if width != "":
             if int(width) > 0:
                 OUTWIDTH = width
 
-        height = input("Please select a frame height (default: 100): ")
+        height = input("Please select a frame height (default: 60): ")
         if height != "":
             if int(height) > 0:
                 OUTHEIGHT = height
