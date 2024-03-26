@@ -1,4 +1,3 @@
-from multiprocessing import Value
 import cv2 as cv
 import sys, time, os
 
