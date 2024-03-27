@@ -2,11 +2,11 @@ import cv2 as cv
 import sys, time, os
 
 ASCII = " `',;*!T1S9X$%&@"
-COLOR_CHAR = "█"
 OUTWIDTH = 300
 OUTHEIGHT = 60
 NEW_FPS = 10
 SAVE_ASCII = False
+COLOR_MODE = False
 OUTPUT_FILENAME = ''
 
 def select16():
@@ -35,17 +35,33 @@ def show_image(image):
     cv.imshow("image", image)
     cv.waitKey(0)
 
+def print_loading_bar(current, max):
+    barl = 30
+    load_dashes = ""
+    load_dashes += "-" * int((current/max)*barl)
+    load_dashes += ">"
+    load_dashes += " " * (barl - int((current/max)*barl))
+    sys.stdout.write(f"\r[\033[32m{load_dashes}\033[0m] {current}/{max}")
+    sys.stdout.flush()
+
 def open_image(filename):
     img = cv.imread(filename, 1)
     # half = cv.resize(img, (0, 0), fx = 0.1, fy = 0.1)
-    return format_image(img)
+    return img
 
-def format_image(image):
+def format_image_grayscale(image):
     small = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
     sgray = cv.cvtColor(small, cv.COLOR_BGR2GRAY)
     return sgray
 
-def convert_to_ascii(image):
+def format_image_color(image):
+    small = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
+    return small
+
+def convert_to_ascii_grayscale(image):
+    image = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
+    image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+
     img_height, img_width = image.shape
     ascii_array = []
 
@@ -57,41 +73,53 @@ def convert_to_ascii(image):
 
     return ascii_array
 
+def convert_to_ascii_color(image):
+    image = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
+    
+    img_height, img_width, img_depth = image.shape
+    ascii_array = []
+
+    if img_depth != 3:
+        raise AttributeError(f"Image not rgb. Has {img_depth} colors instead of 3")
+
+    for y in range(img_height):
+        linestr = ''
+        for x in range(img_width):
+            linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m "
+        ascii_array.append(linestr)
+
+    return ascii_array
+
 def save_ascii_image(image, filename):
     with open(filename, 'w') as ofile:
-        ofile.write("I\n")
+        ofile.write(f"I {COLOR_MODE}\n")
         for line in image:
             ofile.write(line + "\n")
 
-def print_loading_bar(current, max):
-    barl = 30
-    load_dashes = ""
-    load_dashes += "-" * int((current/max)*barl)
-    load_dashes += ">"
-    load_dashes += " " * (barl - int((current/max)*barl))
-    sys.stdout.write(f"\r[\033[32m{load_dashes}\033[0m] {current}/{max}")
-    sys.stdout.flush()
-
-def photo_mode(input_file):
-    small = open_image(input_file)
-    array = convert_to_ascii(small)
-
-    if SAVE_ASCII:
-        save_ascii_image(array, OUTPUT_FILENAME)
-    else:
-        for line in array:
-            print(line)
-
-def load_ascii_image(filename):
+def load_ascii_image_grayscale(filename):
     with open(filename, "r") as ifile:
         header = ifile.readline()
         for line in ifile:
             print(line, end='')
 
+def photo_mode(input_file):
+    small = open_image(input_file)
+    array = convert_to_ascii_grayscale(small)
+
+    if SAVE_ASCII:
+        save_ascii_image(array, OUTPUT_FILENAME)
+    else:
+        sys.stdout.write('\n'.join(array))
+        sys.stdout.flush()
+        sys.stdout.write("\033[0 ")
+
 def video_mode(input_file, start_time = 0, end_time = 10, new_fps = 10):
     global NEW_FPS
     start_time, end_time, new_fps = int(start_time), int(end_time), int(new_fps)
-    NEW_FPS = min(30, new_fps)
+    if COLOR_MODE:
+        NEW_FPS = min(10, new_fps)
+    else:
+        NEW_FPS = min(30, new_fps)
 
     video = cv.VideoCapture(input_file)
     orig_fps = video.get(cv.CAP_PROP_FPS)
@@ -126,8 +154,10 @@ def video_mode(input_file, start_time = 0, end_time = 10, new_fps = 10):
             print(f"Error reading frame {int(orig_frame)}. Skipping frame")
             orig_frame += frame_stride
             continue
-        small = format_image(img)
-        array = convert_to_ascii(small)
+        if COLOR_MODE == True:
+            array = convert_to_ascii_color(img)
+        else:
+            array = convert_to_ascii_grayscale(img)
         frames.append(array)
         print_loading_bar(frame, int(new_frames))
         orig_frame += frame_stride
@@ -136,27 +166,25 @@ def video_mode(input_file, start_time = 0, end_time = 10, new_fps = 10):
     if SAVE_ASCII == True:
         save_ascii_video(frames, OUTPUT_FILENAME)
     else:
-        start = time.time()
         show_ascii_video(frames)
-        print(f"time elapsed: {time.time() - start}")
 
 def show_ascii_video(frames):
     sleep_time = 1/NEW_FPS # have to do 1.1/NEW_FPS because of inaccuracy in the time.sleep() function
     for frame in frames:
         frame_start = time.time()
-        # clear_console()
         frame_line = '\n'.join(frame)
         sys.stdout.write('\033[0;0H' + frame_line)
         sys.stdout.flush()
             
         dtime = time.time() - frame_start
         time.sleep(max(0, sleep_time - dtime))
+    sys.stdout.write("\033[0 ")
     clear_console()
 
 def save_ascii_video(frames, filename):
     with open(filename, "w") as ofile:
         total_frames = len(frames)
-        ofile.write(f"V {OUTWIDTH} {OUTHEIGHT} {NEW_FPS} {total_frames}\n")
+        ofile.write(f"V {COLOR_MODE} {OUTWIDTH} {OUTHEIGHT} {NEW_FPS} {total_frames}\n")
         for frame in frames:
             for line in frame:
                 ofile.write(line + "\n")
@@ -168,7 +196,7 @@ def load_ascii_video(filename):
     framenum = 1
     with open(filename, "r") as ifile:
         print(f"Reading file: {filename}...")
-        OUTWIDTH, OUTHEIGHT, NEW_FPS, total_frames = map(int, ifile.readline().split()[1:])
+        OUTWIDTH, OUTHEIGHT, NEW_FPS, total_frames = map(int, ifile.readline().split()[2:])
         frame = []
         for line in ifile:
             if line == '\n':
@@ -184,6 +212,11 @@ def run_wizard():
     output_mode = input("Which output mode would you like to use? (Picture mode (p) / Video mode (v) / Load existing (l)) ")
     filename = input("Please enter the filename/filepath you would like to open: ")
     if output_mode in ["p", "P", "v", "V"]:
+        global OUTWIDTH, OUTHEIGHT, SAVE_ASCII, OUTPUT_FILENAME, COLOR_MODE
+
+        color_mode = input("Would you like to the output to be in color (it will be grayscale otherwise)? (y/N)?")
+        set_color_mode(color_mode)
+        
         quality = input("Which quality preset would you like to use? (Options: (1) 16 shades, (2) 53 shades, and (3) 92 shades) (default:1): ")
         if quality in ["1", "16", "16 shades", ""]:
             select16()
@@ -194,23 +227,22 @@ def run_wizard():
         else:
             raise ValueError(f"Invalid quality value: {quality}")
         
-        global OUTWIDTH, OUTHEIGHT, SAVE_ASCII
         width = input("Please select a frame width (default: 300): ")
         if width != "":
             if int(width) > 0:
-                OUTWIDTH = width
+                OUTWIDTH = int(width)
 
         height = input("Please select a frame height (default: 60): ")
         if height != "":
             if int(height) > 0:
-                OUTHEIGHT = height
+                OUTHEIGHT = int(height)
 
-        saveascii = input("Would you like to save the result once it is generated (otherwise it will simply be displayed). (y/n): ")
+        saveascii = input("Would you like to save the result once it is generated (otherwise it will simply be displayed). (y/N): ")
         if saveascii in ['y', "Y"]:
             SAVE_ASCII = True
             OUTPUT_FILENAME = input("What would you like to save the output file as? (no default): ")
-        elif saveascii in ['n', 'N']:
-            SAVI_ASCII = False
+        elif saveascii in ['n', 'N', ""]:
+            SAVE_ASCII = False
         
         if output_mode in ["p", "P"]:
             photo_mode(filename)
@@ -218,12 +250,18 @@ def run_wizard():
             start_time = input("What time in the video would you like to start at (in seconds)? (default:0): ")
             if start_time == '':
                 start_time = 0
+
             end_time = input("What time in the video would you like to stop at (in seconds)? (default:10): ")
             if end_time == '':
                 end_time = 10
-            new_fps = input("What framerate would you like the generated video to run at? (default:10, max:30): ")
+
+            if COLOR_MODE:
+                new_fps = input("What framerate would you like the generated video to run at? (default:10, max:10): ")
+            else:
+                new_fps = input("What framerate would you like the generated video to run at? (default:10, max:30): ")
             if new_fps == '':
                 new_fps = 10
+
             video_mode(filename, start_time, end_time, new_fps)
     elif output_mode in ["l", "L"]:
         load_ascii(filename)
@@ -236,7 +274,7 @@ def load_ascii(filename):
     if header.startswith("V"):
         load_ascii_video(filename)
     elif header.startswith("I"):
-        load_ascii_image(filename)
+        load_ascii_image_grayscale(filename)
     else:
         raise ValueError(f"Invalid file: {filename}")
     
@@ -271,6 +309,15 @@ def set_ascii_quality(quality):
         select92()
     else:
         raise ValueError(f"Invalid ascii quality level: {quality}. Options are 1 (16 shades), 2 (53 shades), and 3 (92 shades).")
+    
+def set_color_mode(color_bool):
+    global COLOR_MODE
+    if color_bool in ["true", "True", "t", "T", "y", "Y", "1"]:
+        COLOR_MODE = True
+    elif color_bool in ["false", "False", "f", "F", "n", "N", "0", ""]:
+        COLOR_MODE = False
+    else:
+        raise ValueError(f"Invalid option for color mode: {color_bool}. Must be a boolean value.")
 
 def process_args(args):
     flags = {
@@ -284,6 +331,7 @@ def process_args(args):
         "-h" : set_outheight,
         "-q" : set_ascii_quality,
         "-o" : set_output_filename,
+        "-c" : set_color_mode,
     }
 
     if len(args) == 1:
@@ -304,7 +352,6 @@ def process_args(args):
         flags[call[0]](*call[1:])
     else:
         raise ValueError("Unable to find output flag. Unsure what to actually do. Exiting.")
-
 
 if __name__ == "__main__":
     bind_for_os(os.name)
