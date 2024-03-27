@@ -90,28 +90,55 @@ def convert_to_ascii_color(image):
 
     return ascii_array
 
+def convert_to_ascii_color(image):
+    image = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
+    
+    img_height, img_width, img_depth = image.shape
+    ascii_array = []
+
+    if img_depth != 3:
+        raise AttributeError(f"Image not rgb. Has {img_depth} colors instead of 3")
+
+    for y in range(0, img_height, 2):
+        linestr = ''
+        for x in range(img_width):
+            linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m\033[38;2;{image[y+1][x][2]};{image[y+1][x][1]};{image[y+1][x][0]}m▄"
+        ascii_array.append(linestr)
+
+    return ascii_array
+
 def save_ascii_image(image, filename):
-    with open(filename, 'w') as ofile:
+    with open(filename, 'w', encoding="utf-8") as ofile:
         ofile.write(f"I {COLOR_MODE}\n")
         for line in image:
             ofile.write(line + "\n")
 
-def load_ascii_image_grayscale(filename):
-    with open(filename, "r") as ifile:
+def load_ascii_image(filename):
+    with open(filename, "r", encoding='utf-8') as ifile:
         header = ifile.readline()
+        frameline = ''
+        clear_console()
         for line in ifile:
-            print(line, end='')
+            frameline += line
+        sys.stdout.write(frameline)
+        sys.stdout.write("\033[0m")
+        sys.stdout.flush()
+
 
 def photo_mode(input_file):
-    small = open_image(input_file)
-    array = convert_to_ascii_grayscale(small)
+    img = open_image(input_file)
+
+    if COLOR_MODE == True:
+        array = convert_to_ascii_color(img)
+    else:
+        array = convert_to_ascii_grayscale(img)
 
     if SAVE_ASCII:
         save_ascii_image(array, OUTPUT_FILENAME)
     else:
         sys.stdout.write('\n'.join(array))
         sys.stdout.flush()
-        sys.stdout.write("\033[0 ")
+        sys.stdout.write("\033[0m")
 
 def video_mode(input_file, start_time = 0, end_time = 10, new_fps = 10):
     global NEW_FPS
@@ -178,11 +205,11 @@ def show_ascii_video(frames):
             
         dtime = time.time() - frame_start
         time.sleep(max(0, sleep_time - dtime))
-    sys.stdout.write("\033[0 ")
+    sys.stdout.write("\033[0m")
     clear_console()
 
 def save_ascii_video(frames, filename):
-    with open(filename, "w") as ofile:
+    with open(filename, "w", encoding='utf-8') as ofile:
         total_frames = len(frames)
         ofile.write(f"V {COLOR_MODE} {OUTWIDTH} {OUTHEIGHT} {NEW_FPS} {total_frames}\n")
         for frame in frames:
@@ -194,7 +221,7 @@ def load_ascii_video(filename):
     global OUTWIDTH, OUTHEIGHT, NEW_FPS
     frames = []
     framenum = 1
-    with open(filename, "r") as ifile:
+    with open(filename, "r", encoding='utf-8') as ifile:
         print(f"Reading file: {filename}...")
         OUTWIDTH, OUTHEIGHT, NEW_FPS, total_frames = map(int, ifile.readline().split()[2:])
         frame = []
@@ -269,12 +296,12 @@ def run_wizard():
         raise ValueError(f"Invalid mode: {output_mode}\n")
 
 def load_ascii(filename):
-    with open(filename, 'r') as ifile:
+    with open(filename, 'r', encoding='utf-8') as ifile:
         header = ifile.readline()
     if header.startswith("V"):
         load_ascii_video(filename)
     elif header.startswith("I"):
-        load_ascii_image_grayscale(filename)
+        load_ascii_image(filename)
     else:
         raise ValueError(f"Invalid file: {filename}")
     
