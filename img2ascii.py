@@ -7,6 +7,7 @@ OUTHEIGHT = 60
 NEW_FPS = 10
 SAVE_ASCII = False
 COLOR_MODE = False
+SQUARE_PIXELS = False
 OUTPUT_FILENAME = ''
 
 def select16():
@@ -81,29 +82,19 @@ def convert_to_ascii_color(image):
 
     if img_depth != 3:
         raise AttributeError(f"Image not rgb. Has {img_depth} colors instead of 3")
-
-    for y in range(img_height):
-        linestr = ''
-        for x in range(img_width):
-            linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m "
-        ascii_array.append(linestr)
-
-    return ascii_array
-
-def convert_to_ascii_color(image):
-    image = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
     
-    img_height, img_width, img_depth = image.shape
-    ascii_array = []
-
-    if img_depth != 3:
-        raise AttributeError(f"Image not rgb. Has {img_depth} colors instead of 3")
-
-    for y in range(0, img_height, 2):
-        linestr = ''
-        for x in range(img_width):
-            linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m\033[38;2;{image[y+1][x][2]};{image[y+1][x][1]};{image[y+1][x][0]}m▄"
-        ascii_array.append(linestr)
+    if SQUARE_PIXELS == True:
+        for y in range(0, img_height, 2):
+            linestr = ''
+            for x in range(img_width):
+                linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m\033[38;2;{image[y+1][x][2]};{image[y+1][x][1]};{image[y+1][x][0]}m▄"
+            ascii_array.append(linestr)
+    else:
+        for y in range(img_height):
+            linestr = ''
+            for x in range(img_width):
+                linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m "
+            ascii_array.append(linestr)
 
     return ascii_array
 
@@ -129,7 +120,10 @@ def photo_mode(input_file):
     img = open_image(input_file)
 
     if COLOR_MODE == True:
-        array = convert_to_ascii_color(img)
+        if SQUARE_PIXELS:
+            array = convert_to_ascii_color(img)
+        else:
+            array = convert_to_ascii_color(img)
     else:
         array = convert_to_ascii_grayscale(img)
 
@@ -345,6 +339,15 @@ def set_color_mode(color_bool):
         COLOR_MODE = False
     else:
         raise ValueError(f"Invalid option for color mode: {color_bool}. Must be a boolean value.")
+    
+def set_square_pixels(square_bool):
+    global SQUARE_PIXELS
+    if square_bool in ["true", "True", "t", "T", "y", "Y", "1"]:
+        SQUARE_PIXELS = True
+    elif square_bool in ["false", "False", "f", "F", "n", "N", "0", ""]:
+        SQUARE_PIXELS = False
+    else:
+        raise ValueError(f"Invalid option for pixel mode: {square_bool}. Must be a boolean value.")
 
 def process_args(args):
     flags = {
@@ -359,6 +362,7 @@ def process_args(args):
         "-q" : set_ascii_quality,
         "-o" : set_output_filename,
         "-c" : set_color_mode,
+        "-s" : set_square_pixels,
     }
 
     if len(args) == 1:
@@ -374,6 +378,10 @@ def process_args(args):
         else:
             call.append(args[i])
         i += 1
+
+    if SQUARE_PIXELS == True and COLOR_MODE == True:
+        global OUTHEIGHT
+        OUTHEIGHT *= 2
     
     if call[0] in flags:
         flags[call[0]](*call[1:])
