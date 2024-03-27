@@ -237,6 +237,9 @@ def run_wizard():
 
         color_mode = input("Would you like to the output to be in color (it will be grayscale otherwise)? (y/N)?")
         set_color_mode(color_mode)
+        if COLOR_MODE == True:
+            square_pixels = input("Would you like to use square pixel rendering? (y/N):")
+            set_square_pixels(square_pixels)
         
         quality = input("Which quality preset would you like to use? (Options: (1) 16 shades, (2) 53 shades, and (3) 92 shades) (default:1): ")
         if quality in ["1", "16", "16 shades", ""]:

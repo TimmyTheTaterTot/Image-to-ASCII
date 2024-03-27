@@ -36,3 +36,5 @@ Option flags:
 - `-h`: Used to specify the output height in characters. (default = 100) (ex. `-h 100`)
 - `-q`: Used to specify which ascii gradient the output file uses. The 3 options are 1 (16 shades), 2 (53 shades), and 3 (93 shades). Option 1 tends to have the best results. (default = 1) (ex. `-q 1`)
 - `-o`: Used to specify the output filename. If this flag is used, the image or video that is input into the program will be saved rather than displayed to the terminal. (no default value) (ex. `-o output.txt`)
+- `-c`: Used to specify whether or not to output using color pixels rather than ascii characters. Note that video framerate is limited to 10 fps when using color mode for performance and stability reasons. (default = false) (ex. `-c true`)
+- `-s`: Used to specify whether to use square pixel rendering mode or not. Must be used in combination with `-c` flag. If true, will render using both background and foreground coloring to allow for 2 colors per pixel rather than 1. (default = false) (ex. `-s true`)
