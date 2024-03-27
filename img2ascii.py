@@ -90,6 +90,23 @@ def convert_to_ascii_color(image):
 
     return ascii_array
 
+def convert_to_ascii_color(image):
+    image = cv.resize(image, (OUTWIDTH, OUTHEIGHT))
+    
+    img_height, img_width, img_depth = image.shape
+    ascii_array = []
+
+    if img_depth != 3:
+        raise AttributeError(f"Image not rgb. Has {img_depth} colors instead of 3")
+
+    for y in range(0, img_height, 2):
+        linestr = ''
+        for x in range(img_width):
+            linestr += f"\033[48;2;{image[y][x][2]};{image[y][x][1]};{image[y][x][0]}m\033[38;2;{image[y+1][x][2]};{image[y+1][x][1]};{image[y+1][x][0]}m▄"
+        ascii_array.append(linestr)
+
+    return ascii_array
+
 def save_ascii_image(image, filename):
     with open(filename, 'w') as ofile:
         ofile.write(f"I {COLOR_MODE}\n")
